@@ -1,0 +1,130 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"childIndexes" : 
+					[
+						1
+					],
+					"hasInstallRule" : true,
+					"jsonFile" : "directory-.-Debug-06a8080da195209a365f.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						2
+					]
+				},
+				{
+					"build" : "antlr4_runtime",
+					"childIndexes" : 
+					[
+						2
+					],
+					"hasInstallRule" : true,
+					"jsonFile" : "directory-antlr4_runtime-Debug-b47b2f3994844bce1ef1.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.15"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 1,
+					"source" : "antlr4_runtime"
+				},
+				{
+					"build" : "antlr4_runtime/runtime",
+					"hasInstallRule" : true,
+					"jsonFile" : "directory-antlr4_runtime.runtime-Debug-a33ff09706ff8e0bb1ea.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.15"
+					},
+					"parentIndex" : 1,
+					"projectIndex" : 1,
+					"source" : "antlr4_runtime/runtime",
+					"targetIndexes" : 
+					[
+						0,
+						1
+					]
+				}
+			],
+			"name" : "Debug",
+			"projects" : 
+			[
+				{
+					"childIndexes" : 
+					[
+						1
+					],
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "spreadsheet",
+					"targetIndexes" : 
+					[
+						2
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						1,
+						2
+					],
+					"name" : "LIBANTLR4",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						0,
+						1
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 2,
+					"id" : "antlr4_shared::@e05a23ba9f1f17879cbc",
+					"jsonFile" : "target-antlr4_shared-Debug-7bb7b4afcb12ff800bc5.json",
+					"name" : "antlr4_shared",
+					"projectIndex" : 1
+				},
+				{
+					"directoryIndex" : 2,
+					"id" : "antlr4_static::@e05a23ba9f1f17879cbc",
+					"jsonFile" : "target-antlr4_static-Debug-d4f8acaa479a6987bdf0.json",
+					"name" : "antlr4_static",
+					"projectIndex" : 1
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "spreadsheet::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-spreadsheet-Debug-50e30f350105c638310f.json",
+					"name" : "spreadsheet",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "/home/nikolai/projects/practicum/cpp-spreadsheet/spreadsheet/build",
+		"source" : "/home/nikolai/projects/practicum/cpp-spreadsheet/spreadsheet"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 3
+	}
+}
