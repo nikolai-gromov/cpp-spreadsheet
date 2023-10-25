@@ -2,13 +2,16 @@
 
 #include "common.h"
 #include "formula.h"
+#include "sheet.h"
 
 #include <optional>
 #include <unordered_set>
 
+class Sheet;
+
 class Cell : public CellInterface {
 public:
-    Cell(SheetInterface& sheet);
+    Cell(Sheet& sheet);
     ~Cell();
 
     void Set(std::string text);
@@ -25,21 +28,14 @@ private:
     class TextImpl;
     class FormulaImpl;
 
-    SheetInterface& sheet_;
+    Sheet& sheet_;
     std::unique_ptr<Impl> impl_;
 
     std::unordered_set<Cell*> dependent_cells_;
     mutable std::optional<Value> value_cache_;
 
-    enum class Update {
-        ADD,
-        REMOVE
-    };
+    bool CheckCellForCyclicDependencies(const Cell* cell) const;
+    bool IsCircularDependency(const std::unique_ptr<Impl>& tmp_impl) const;
 
-    void CheckCellForCyclicDependencies(const CellInterface* cell) const;
-    void SearchForCyclicDependencies(const std::unique_ptr<FormulaImpl>& impl) const;
-
-    void CacheReset();
-
-    void UpdateDependecies(Update upd);
+    void CacheInvalidate();
 };

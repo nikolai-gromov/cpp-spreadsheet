@@ -4,43 +4,26 @@
 #include <iostream>
 #include <string>
 #include <optional>
+#include <functional>
 
 class Cell::Impl {
 public:
-    Impl(SheetInterface& sheet, std::string text)
-        : sheet_(sheet)
-        , text_(text) {
-    }
-
-    Impl(SheetInterface& sheet)
-        : sheet_(sheet) {
-    }
-
     virtual ~Impl() = default;
 
-    virtual Value GetValue() const = 0;
-
+    virtual Value GetValue(const Sheet& sheet) const = 0;
     virtual std::string GetText() const = 0;
 
     virtual std::vector<Position> GetReferencedCells() const = 0;
-
-protected:
-    SheetInterface& sheet_;
-    std::string text_;
 };
 
-class Cell::EmptyImpl : public Impl {
+class Cell::EmptyImpl : public Cell::Impl {
 public:
-    EmptyImpl(SheetInterface& sheet)
-        : Impl(sheet) {
-    }
-
-    Value GetValue() const override  {
-        return text_;
+    Value GetValue(const Sheet& sheet) const override  {
+        return {};
     }
 
     std::string GetText() const override {
-        return text_;
+        return "";
     }
 
     std::vector<Position> GetReferencedCells() const override {
@@ -48,14 +31,14 @@ public:
     }
 };
 
-class Cell::TextImpl : public Impl {
+class Cell::TextImpl : public Cell::Impl {
 public:
-    TextImpl(SheetInterface& sheet, std::string text)
-        : Impl(sheet, text) {
+    TextImpl(std::string text)
+        : text_(std::move(text)) {
     }
 
-    Value GetValue() const override  {
-        if (!text_.empty() && text_.front() == '\'') {
+    Value GetValue(const Sheet& sheet) const override  {
+        if (!text_.empty() && text_.front() == ESCAPE_SIGN) {
             return text_.substr(1);
         }
         return text_;
@@ -68,21 +51,25 @@ public:
     std::vector<Position> GetReferencedCells() const override {
         return {};
     }
+
+private:
+    std::string text_;
 };
 
 class Cell::FormulaImpl : public Impl {
 public:
-    FormulaImpl(SheetInterface& sheet, std::string text)
-        : Impl(sheet, text) {
+    FormulaImpl(std::string text, Sheet& sheet)
+        : text_(std::move(text))
+        , sheet_(sheet) {
         try {
-            formula_ = ParseFormula(text);
+            formula_ = ParseFormula(text_);
         } catch (const std::exception& exc) {
             std::throw_with_nested(FormulaException(exc.what()));
         }
     }
 
-    Value GetValue() const override {
-        FormulaInterface::Value val = formula_.get()->Evaluate(sheet_);
+    Value GetValue(const Sheet& sheet) const override {
+        FormulaInterface::Value val = formula_.get()->Evaluate(sheet);
         if (std::holds_alternative<FormulaError>(val)) {
             return std::get<FormulaError>(val);
         }
@@ -94,91 +81,100 @@ public:
     }
 
     std::vector<Position> GetReferencedCells() const override {
-        std::vector<Position> list_cells = formula_->GetReferencedCells();
-        for (auto it = list_cells.begin(); it != list_cells.end(); ++it) {
-            if (!(sheet_.GetCell(*it))) {
-                sheet_.SetCell(*it, "");
-            }
-        }
-        return list_cells;
+        return formula_->GetReferencedCells();;
     }
 
 private:
+    std::string text_;
+    Sheet& sheet_;
     std::unique_ptr<FormulaInterface> formula_;
 };
 
-void Cell::CheckCellForCyclicDependencies(const CellInterface* cell) const {
-    if (this == cell) {
-        throw CircularDependencyException("Cyclic dependency");
+bool Cell::CheckCellForCyclicDependencies(const Cell* cell) const {
+    if (cell == this) {
+        return true;
     }
-    for (Position pos : cell->GetReferencedCells()) {
-        CheckCellForCyclicDependencies(sheet_.GetCell(pos));
-    }
-}
 
-void Cell::SearchForCyclicDependencies(const std::unique_ptr<FormulaImpl>& impl) const {
-    for (Position pos : impl->GetReferencedCells()) {
-        CheckCellForCyclicDependencies(sheet_.GetCell(pos));
-    }
-}
-
-void Cell::CacheReset() {
-    value_cache_.reset();
-    for (Cell* cell_ptr : dependent_cells_) {
-        cell_ptr->CacheReset();
-    }
-}
-
-void Cell::UpdateDependecies(Update upd) {
-    for (Position pos : GetReferencedCells()) {
-        CellInterface* cell_ptr = sheet_.GetCell(pos);
-        if (cell_ptr) {
-            if (Update::REMOVE == upd) {
-                static_cast<Cell*>(cell_ptr)->dependent_cells_.erase(this);
-            } else {
-                static_cast<Cell*>(cell_ptr)->dependent_cells_.insert(this);
-            }
+    for (const Position& pos : cell->GetReferencedCells()) {
+        Cell* cell = static_cast<Cell*>(sheet_.GetCell(pos));
+        if (CheckCellForCyclicDependencies(cell)) {
+            return true;
         }
     }
+    return false;
 }
 
-Cell::Cell(SheetInterface& sheet)
-    : sheet_(sheet) {
-    impl_ = std::make_unique<EmptyImpl>(sheet_);
+bool Cell::IsCircularDependency(const std::unique_ptr<Impl>& tmp_impl) const {
+    for (const Position& pos : tmp_impl->GetReferencedCells()) {
+        Cell* cell = static_cast<Cell*>(sheet_.GetCell(pos));
+        if (cell == this) {
+            return true;
+        } else if (CheckCellForCyclicDependencies(cell)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void Cell::CacheInvalidate() {
+    value_cache_.reset();
+    for (auto dependent_cell : dependent_cells_) {
+        dependent_cell->CacheInvalidate();
+    }
+}
+
+Cell::Cell(Sheet& sheet)
+    : sheet_(sheet),
+    impl_(std::make_unique<EmptyImpl>()) {
 }
 
 Cell::~Cell() {}
 
 void Cell::Set(std::string text) {
-    CacheReset();
-    UpdateDependecies(Update::REMOVE);
-    if (!text.empty()) {
-        if (text.size() > 1 && text.front() == '=') {
-            std::unique_ptr<FormulaImpl> impl_tmp = std::make_unique<FormulaImpl>(sheet_, text.substr(1));
-            SearchForCyclicDependencies(impl_tmp);
-            impl_ = std::move(impl_tmp);
-            UpdateDependecies(Update::ADD);
-        } else {
-            impl_ = std::make_unique<TextImpl>(sheet_, text);
-        }
+    using namespace std::literals;
+
+    std::unique_ptr<Impl> tmp_impl;
+    if (text.empty()) {
+        tmp_impl = std::make_unique<EmptyImpl>();
+    } else if (text.size() > 1 && text.front() == FORMULA_SIGN) {
+        tmp_impl = std::make_unique<FormulaImpl>(std::move(text.substr(1)), sheet_);
     } else {
-        impl_ = std::make_unique<EmptyImpl>(sheet_);
+        tmp_impl = std::make_unique<TextImpl>(std::move(text));
     }
+
+    for (const Position& pos : tmp_impl->GetReferencedCells()) {
+        Cell* cell = static_cast<Cell*>(sheet_.GetCell(pos));
+        if (!cell) {
+            sheet_.SetCell(pos, "");
+        }
+
+        static_cast<Cell*>(sheet_.GetCell(pos))->dependent_cells_.insert(this);
+    }
+
+    if (IsCircularDependency(tmp_impl)) {
+        throw CircularDependencyException("The new value of the cell \"" + tmp_impl->GetText() +
+                                           "\" creates a cyclic dependency"s);
+    }
+
+    impl_ = std::move(tmp_impl);
+
+    CacheInvalidate();
 }
 
 void Cell::Clear() {
-    Set("");
+    impl_ = std::make_unique<EmptyImpl>();
+    CacheInvalidate();
 }
 
 Cell::Value Cell::GetValue() const {
-    if (value_cache_ == std::nullopt) {
-        value_cache_ = impl_->GetValue();
+    if (!value_cache_) {
+        value_cache_ = impl_->GetValue(sheet_);
     }
     return value_cache_.value();
 }
 
 std::string Cell::GetText() const {
-    return impl_.get()->GetText();
+    return impl_->GetText();
 }
 
 std::vector<Position> Cell::GetReferencedCells() const {

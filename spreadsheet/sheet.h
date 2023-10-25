@@ -5,6 +5,8 @@
 
 #include <functional>
 
+class Cell;
+
 template <typename P>
 struct Hash {
     size_t operator()(const P& pos) const {
@@ -32,6 +34,4 @@ private:
 	std::unordered_map<Position, std::unique_ptr<Cell>, Hash<Position>> sheet_;
 
     void CheckValidityOfPosition(Position pos) const;
-
-    void CheckForCyclicDependencies(Position pos, std::vector<Position> list_cells);
 };

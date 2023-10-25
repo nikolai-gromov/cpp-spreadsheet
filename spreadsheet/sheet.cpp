@@ -9,15 +9,8 @@ using namespace std::literals;
 
 void Sheet::CheckValidityOfPosition(Position pos) const {
     if (!pos.IsValid()) {
-        throw InvalidPositionException("Invalid position");
-    }
-}
-
-void Sheet::CheckForCyclicDependencies(Position pos, std::vector<Position> list_cells) {
-    for (Position pos_cell : list_cells) {
-        if (pos == pos_cell) {
-            throw CircularDependencyException("Cyclic dependency");
-        }
+        throw InvalidPositionException("The position ("s + std::to_string(pos.row) + ',' + std::to_string(pos.col)
+                                       + ") is incorrect"s);
     }
 }
 
@@ -29,14 +22,10 @@ Sheet::~Sheet() {
 
 void Sheet::SetCell(Position pos, std::string text) {
     CheckValidityOfPosition(pos);
-    if (sheet_.count(pos) > 0) {
-        sheet_[pos]->Set(text);
-    } else {
-        std::unique_ptr<Cell> cell = std::make_unique<Cell>(*this);
-        cell->Set(text);
-        sheet_[pos] = std::move(cell);
+    if (!sheet_.count(pos)) {
+        sheet_[pos] = std::make_unique<Cell>(*this);
     }
-    CheckForCyclicDependencies(pos, sheet_.at(pos).get()->GetReferencedCells());
+    sheet_[pos]->Set(text);
 }
 
 const CellInterface* Sheet::GetCell(Position pos) const {
