@@ -37,10 +37,10 @@ To generate C++ executable files for us, run the following command:
 
 The files will work in the main project and do some of the work for us:
 
-Formula.interp, Formula.tokens - auxiliary text files for your convenience;
-FormulaLexer.{cpp,h} - lexer code;
-FormulaParser.{cpp,h} - parser code;
-FormulaListener.{cpp,h}, FormulaBaseListener.{cpp,h} - listener code, a variation of the visitor pattern for the parse tree. It will allow you to traverse the parse tree and build our abstract syntax tree for formula calculation.
+* Formula.interp, Formula.tokens - auxiliary text files for your convenience;
+* FormulaLexer.{cpp,h} - lexer code;
+* FormulaParser.{cpp,h} - parser code;
+* FormulaListener.{cpp,h}, FormulaBaseListener.{cpp,h} - listener code, a variation of the visitor pattern for the parse tree. It will allow you to traverse the parse tree and build our abstract syntax tree for formula calculation.
 
 You will find the CMake files for its integration below. The generated files will be saved in the [folder](https://github.com/nikolai-gromov/cpp-spreadsheet/tree/main/spreadsheet/build/antlr4cpp_generated_src/Formula):
 
